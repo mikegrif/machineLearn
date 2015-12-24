@@ -1,0 +1,137 @@
+---
+title: "Machine Learning Project"
+author: "Mike G"
+date: "December 21, 2015"
+output: html_document
+---
+
+## Introduction
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, the goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: [http://groupware.les.inf.puc-rio.br/har](http://groupware.les.inf.puc-rio.br/har) (see the section on the Weight Lifting Exercise Dataset). 
+
+
+
+## Objective
+The purpose of this analysis is to predict the manner in which each participant did the exercise. The prediction outcome is determined by **classe** variable in the training set.  
+
+
+## Getting and Cleaning Data
+Before we can do any analysis, we have to make sure the data is in a useable state. 
+
+### Data
+The training data for this project is available at: [https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv)  
+
+The test data for this project is available at: [https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv)  
+
+Below are the steps performed to clean the data:
+
+```{r}
+require(caret)
+
+# read data into dataframe
+training <- read.csv('pml-training.csv', na.strings=c("NA","#DIV/0!",""), stringsAsFactors = FALSE)
+testing <- read.csv('pml-testing.csv', na.strings=c("NA","#DIV/0!",""), stringsAsFactors = FALSE)
+
+# remove columns where at least 60% of data is missing
+trainLimit <- round(dim(training)[1] * 0.6)
+testLimit <- round(dim(testing)[1] * 0.6)
+training <- training[,colSums(is.na(training)) < trainLimit]
+testing <- testing[,colSums(is.na(testing)) < testLimit]
+
+# convert classe to a factor before splitting data
+training$classe <- as.factor(training$classe)
+
+# list remaining columns
+names(training)
+
+# remove columns not used for prediction
+training$X <- NULL
+training$user_name <- NULL
+training$raw_timestamp_part_1 <- NULL
+training$raw_timestamp_part_2 <- NULL
+training$cvtd_timestamp <- NULL
+
+# use 75% of training data to build model
+set.seed(122015)
+indx <- createDataPartition(training$classe, p=0.75, list=FALSE)
+subTrain <- training[indx,]
+subTest <- training[-indx,]
+
+# identify and remove predictors with little variance,
+# since they have minimal impact on predicting output
+nzv <- nearZeroVar(subTrain, saveMetrics = TRUE)
+subTrain <- subTrain[,nzv$nzv==FALSE]
+
+nzv <- nearZeroVar(subTest, saveMetrics = TRUE)
+subTest <- subTest[,nzv$nzv==FALSE]
+
+
+```
+
+## Data Exploration
+Before attempting to build a model, I did some basic data exploration to get a better understanding of the predictor variables. Below is a summary of the exploration done on the predictors: 
+
+```{r}
+require(ggplot2)
+require(gridExtra)
+require(dplyr)
+require(corrplot)
+
+# display summary statistics
+summary(subTrain)
+
+# generate visualization of correlation matrix
+df <- subTrain[-54]
+corrplot.mixed(cor(df),lower='circle',upper='color',
+               tl.pos='lt',diag='n',order='hclust',hclust.method='complete')
+
+```
+
+## Model Building
+
+I decided to use a *random forest* model to determine the output variable due to the following:  
+1. This is a classification problem with many predictors     
+2. Random Forest models are usually accurate for these type of scenarios    
+  
+
+```{r, cache=FALSE}
+require(randomForest)
+
+# generate model using Random Forest
+require(randomForest)
+modfit <- randomForest(classe ~ ., data=subTrain, importance=TRUE)
+
+# generate plot to show importance of variables
+varImpPlot(modfit)
+
+
+```
+
+### Model Summary 
+From the results below, we see the model has a **99.6%** accurracy rate when applied to the test data. Based on this accuracy rate, I expect the model to make the wrong prediction once out of every 250 attempts (1/250 = 4/1000 = 0.4%). 
+
+```{r}
+# generate and display confusion matrix
+predictions <- predict(modfit, subTest, type='class')
+cmatrix <- confusionMatrix(predictions, subTest$classe)
+cmatrix
+```
+
+## Model Testing
+
+```{r}
+
+# use model to predict data based based on test data
+predictions <- predict(modfit1, dftest, type = 'raw')
+
+# save predictions to file
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(predictions)
+
+```
