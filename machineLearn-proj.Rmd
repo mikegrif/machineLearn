@@ -121,7 +121,7 @@ cmatrix
 ```{r}
 
 # use model to predict data based based on test data
-predictions <- predict(modfit1, dftest, type = 'raw')
+predictions <- predict(modfit, testing, type='class')
 
 # save predictions to file
 pml_write_files = function(x){
