@@ -70,16 +70,15 @@ subTest <- subTest[,nzv$nzv==FALSE]
 ## Data Exploration
 Before attempting to build a model, I did some basic data exploration to get a better understanding of the predictor variables. Below is a summary of the exploration done on the predictors: 
 
-```{r}
+```{r, message=FALSE}
 require(ggplot2)
-require(gridExtra)
 require(dplyr)
 require(corrplot)
 
 # display summary statistics
 summary(subTrain)
 
-# generate visualization of correlation matrix
+# generate visualization of correlation matrix for predictor variables
 df <- subTrain[-54]
 corrplot.mixed(cor(df),lower='circle',upper='color',
                tl.pos='lt',diag='n',order='hclust',hclust.method='complete')
@@ -97,16 +96,17 @@ I decided to use a *random forest* model to determine the output variable due to
 require(randomForest)
 
 # generate model using Random Forest
-require(randomForest)
 modfit <- randomForest(classe ~ ., data=subTrain, importance=TRUE)
 
 # generate plot to show importance of variables
 varImpPlot(modfit)
 
-
 ```
+   
+   
+The above plot shows predictors that have the biggest impact on model accuracy and gini score. For example, removing predictors *yaw_belt, num_window and roll_belt* would have a significant impact on the accuracy of the model. Moreover, these three variables also play a critical role in reducing the gini impurity.  
 
-### Model Summary 
+### Model Summary
 From the results below, we see the model has a **99.6%** accurracy rate when applied to the test data. Based on this accuracy rate, I expect the model to make the wrong prediction once out of every 250 attempts (1/250 = 4/1000 = 0.4%). 
 
 ```{r}
